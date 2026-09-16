@@ -101,6 +101,40 @@ function App() {
     }
   }
 
+  // Delete an image through the API, then remove it from the page
+  async function handleRemoveImage(collectionId, imageId) {
+    if (!window.confirm("Remove this image?")) {
+      return;
+    }
+
+    try {
+      const response = await fetch(
+        `http://localhost:3001/api/collections/${collectionId}/images/${imageId}`,
+        { method: "DELETE" },
+      );
+
+      if (!response.ok) {
+        throw new Error("The backend could not remove the image.");
+      }
+
+      setCollections((currentCollections) =>
+        currentCollections.map((collection) =>
+          collection.id === collectionId
+            ? {
+                ...collection,
+                images: collection.images.filter(
+                  (image) => image.id !== imageId,
+                ),
+              }
+            : collection,
+        ),
+      );
+    } catch (error) {
+      console.error(error);
+      window.alert("Could not remove the image.");
+    }
+  }
+
   return (
     <main className="app">
       <header>
@@ -136,6 +170,14 @@ function App() {
                     <figure className="saved-image" key={image.id}>
                       <img src={image.imageUrl} alt={image.title} />
                       <figcaption>{image.title}</figcaption>
+                      <button
+                        type="button"
+                        onClick={() =>
+                          handleRemoveImage(collection.id, image.id)
+                        }
+                      >
+                        Remove image
+                      </button>
                     </figure>
                   ))}
                 </div>

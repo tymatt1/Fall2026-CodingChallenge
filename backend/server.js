@@ -1,94 +1,125 @@
 // Configured Express backend server
-const express = require('express')
-const cors = require('cors')
+const express = require("express");
+const cors = require("cors");
 
-const app = express()
-const port = 3001
+const app = express();
+const port = 3001;
 
-app.use(cors())
-app.use(express.json())
+app.use(cors());
+app.use(express.json());
+
+// Verification that the backend is available
+app.get("/api/health", (request, response) => {
+  response.json({
+    message: "SuperImage API is running!",
+  });
+});
+
+app.listen(port, () => {
+  console.log(`Backend running at http://localhost:${port}`);
+});
 
 // Temporary storage while the app is running.
 let collections = [
   {
     id: 1,
-    name: 'Dream Destinations',
-    description: 'Places I would love to visit.',
+    name: "Dream Destinations",
+    description: "Places I would love to visit.",
     images: [],
   },
   {
     id: 2,
-    name: 'Creative Spaces',
-    description: 'Rooms and workspaces that inspire me.',
+    name: "Creative Spaces",
+    description: "Rooms and workspaces that inspire me.",
     images: [],
   },
-]
+];
 
 // Return every collection to the frontend
-app.get('/api/collections', (request, response) => {
-  response.json(collections)
-})
+app.get("/api/collections", (request, response) => {
+  response.json(collections);
+});
 
 // Create a collection from data sent by the frontend
-app.post('/api/collections', (request, response) => {
-  const name = request.body.name?.trim()
+app.post("/api/collections", (request, response) => {
+  const name = request.body.name?.trim();
 
   if (!name) {
     return response.status(400).json({
-      error: 'Collection name is required.',
-    })
+      error: "Collection name is required.",
+    });
   }
 
   const newCollection = {
     id: Date.now(),
     name,
     description:
-      request.body.description?.trim() || 'A new SuperImage collection.',
+      request.body.description?.trim() || "A new SuperImage collection.",
     images: [],
-  }
+  };
 
-  collections.push(newCollection)
+  collections.push(newCollection);
 
-  response.status(201).json(newCollection)
-})
+  response.status(201).json(newCollection);
+});
 
 // Save an image inside a certain collection
-app.post('/api/collections/:collectionId/images', (request, response) => {
-  const collectionId = Number(request.params.collectionId)
-  const collection = collections.find((item) => item.id === collectionId)
+app.post("/api/collections/:collectionId/images", (request, response) => {
+  const collectionId = Number(request.params.collectionId);
+  const collection = collections.find((item) => item.id === collectionId);
 
   if (!collection) {
     return response.status(404).json({
-      error: 'Collection not found.',
-    })
+      error: "Collection not found.",
+    });
   }
 
-  const imageUrl = request.body.imageUrl?.trim()
+  const imageUrl = request.body.imageUrl?.trim();
 
   if (!imageUrl) {
     return response.status(400).json({
-      error: 'Image URL is required.',
-    })
+      error: "Image URL is required.",
+    });
   }
 
   const newImage = {
     id: Date.now(),
     imageUrl,
-    title: request.body.title?.trim() || 'Untitled image',
-  }
+    title: request.body.title?.trim() || "Untitled image",
+  };
 
-  collection.images.push(newImage)
+  collection.images.push(newImage);
 
-  response.status(201).json(newImage)
-})
+  response.status(201).json(newImage);
+});
 
-// Verification that the backend is available
-app.get('/api/health', (request, response) => {
-  response.json({
-    message: 'SuperImage API is running!',
-  })
-})
+// Remove a particular image from a collection
+app.delete(
+  "/api/collections/:collectionId/images/:imageId",
+  (request, response) => {
+    const collectionId = Number(request.params.collectionId);
+    const imageId = Number(request.params.imageId);
 
-app.listen(port, () => {
-  console.log(`Backend running at http://localhost:${port}`)
-})
+    const collection = collections.find((item) => item.id === collectionId);
+
+    if (!collection) {
+      return response.status(404).json({
+        error: "Collection not found.",
+      });
+    }
+
+    const imageIndex = collection.images.findIndex(
+      (image) => image.id === imageId,
+    );
+
+    if (imageIndex === -1) {
+      return response.status(404).json({
+        error: "Image not found.",
+      });
+    }
+
+    const [deletedImage] = collection.images.splice(imageIndex, 1);
+
+    response.json(deletedImage);
+  },
+);
