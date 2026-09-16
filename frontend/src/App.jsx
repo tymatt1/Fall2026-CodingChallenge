@@ -135,6 +135,50 @@ function App() {
     }
   }
 
+  // Edit an image title through the API
+  async function handleEditImage(collectionId, image) {
+    const title = window.prompt("Enter a new title:", image.title);
+
+    if (!title?.trim() || title.trim() === image.title) {
+      return;
+    }
+
+    try {
+      const response = await fetch(
+        `http://localhost:3001/api/collections/${collectionId}/images/${image.id}`,
+        {
+          method: "PATCH",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ title: title.trim() }),
+        },
+      );
+
+      if (!response.ok) {
+        throw new Error("The backend could not edit the image.");
+      }
+
+      const updatedImage = await response.json();
+
+      setCollections((currentCollections) =>
+        currentCollections.map((collection) =>
+          collection.id === collectionId
+            ? {
+                ...collection,
+                images: collection.images.map((currentImage) =>
+                  currentImage.id === image.id ? updatedImage : currentImage,
+                ),
+              }
+            : collection,
+        ),
+      );
+    } catch (error) {
+      console.error(error);
+      window.alert("Could not edit the image title.");
+    }
+  }
+
   return (
     <main className="app">
       <header>
@@ -170,6 +214,12 @@ function App() {
                     <figure className="saved-image" key={image.id}>
                       <img src={image.imageUrl} alt={image.title} />
                       <figcaption>{image.title}</figcaption>
+                      <button
+                        type="button"
+                        onClick={() => handleEditImage(collection.id, image)}
+                      >
+                        Edit title
+                      </button>
                       <button
                         type="button"
                         onClick={() =>

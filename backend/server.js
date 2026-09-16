@@ -127,6 +127,34 @@ app.post("/api/collections/:collectionId/images", (request, response) => {
   response.status(201).json(newImage);
 });
 
+// Update an image title in SQLite and in the current server data
+app.patch(
+  "/api/collections/:collectionId/images/:imageId",
+  (request, response) => {
+    const collectionId = Number(request.params.collectionId);
+    const imageId = Number(request.params.imageId);
+    const title = request.body.title?.trim();
+
+    if (!title) {
+      return response.status(400).json({ error: "Title is required." });
+    }
+
+    const collection = collections.find((item) => item.id === collectionId);
+    const image = collection?.images.find((item) => item.id === imageId);
+
+    if (!image) {
+      return response.status(404).json({ error: "Image not found." });
+    }
+
+    database
+      .prepare("UPDATE images SET title = ? WHERE id = ? AND collection_id = ?")
+      .run(title, imageId, collectionId);
+
+    image.title = title;
+    response.json(image);
+  },
+);
+
 // Delete an image from the SQLite server's collection data
 app.delete(
   "/api/collections/:collectionId/images/:imageId",
