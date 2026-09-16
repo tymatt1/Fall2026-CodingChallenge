@@ -102,6 +102,20 @@
   background: #e4dcff;
 }
 
+.share-button {
+  margin: 16px 0 0 8px;
+  padding: 9px 14px;
+  color: #315b4c;
+  background: #e8f5ef;
+  border: 1px solid #bcdccc;
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.share-button:hover {
+  background: #d8eee4;
+}
+
 /* Saved Image Styles */
 .saved-images {
   display: grid;

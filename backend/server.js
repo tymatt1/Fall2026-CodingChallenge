@@ -7,6 +7,8 @@ const database = require("./database");
 const app = express();
 const port = 3001;
 
+const { randomUUID } = require("crypto");
+
 app.use(cors());
 app.use(express.json());
 
@@ -25,7 +27,7 @@ app.listen(port, () => {
 const collectionRows = database
   .prepare(
     `
-    SELECT id, name, description
+    SELECT id, name, description, share_id AS shareId
     FROM collections
     ORDER BY id
   `,
@@ -84,6 +86,46 @@ app.post("/api/collections", (request, response) => {
   collections.push(newCollection);
 
   response.status(201).json(newCollection);
+});
+
+// Create or return a permanent sharing ID for a collection
+app.post("/api/collections/:collectionId/share", (request, response) => {
+  const collectionId = Number(request.params.collectionId);
+  const collection = collections.find((item) => item.id === collectionId);
+
+  if (!collection) {
+    return response.status(404).json({
+      error: "Collection not found.",
+    });
+  }
+
+  if (!collection.shareId) {
+    collection.shareId = randomUUID();
+
+    database
+      .prepare("UPDATE collections SET share_id = ? WHERE id = ?")
+      .run(collection.shareId, collectionId);
+  }
+
+  response.json({
+    shareId: collection.shareId,
+    shareUrl: `http://localhost:5173/share/${collection.shareId}`,
+  });
+});
+
+// Find a collection using its public sharing ID
+app.get("/api/shared/:shareId", (request, response) => {
+  const collection = collections.find(
+    (item) => item.shareId === request.params.shareId,
+  );
+
+  if (!collection) {
+    return response.status(404).json({
+      error: "Shared collection not found.",
+    });
+  }
+
+  response.json(collection);
 });
 
 // Save an image to a current collection in the SQL db
@@ -155,7 +197,7 @@ app.patch(
   },
 );
 
-// Delete an image from the SQLite server's collection data
+// Delete an image from a collection and in the server
 app.delete(
   "/api/collections/:collectionId/images/:imageId",
   (request, response) => {

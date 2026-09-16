@@ -11,7 +11,8 @@ database.exec(`
   CREATE TABLE IF NOT EXISTS collections (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     name TEXT NOT NULL,
-    description TEXT NOT NULL DEFAULT ''
+    description TEXT NOT NULL DEFAULT '',
+    share_id TEXT UNIQUE
   );
 
   CREATE TABLE IF NOT EXISTS images (
@@ -24,6 +25,19 @@ database.exec(`
       ON DELETE CASCADE
   );
 `);
+
+// Add share_id to databases created before sharing was implemented
+const collectionColumns = database
+  .prepare("PRAGMA table_info(collections)")
+  .all();
+
+const hasShareId = collectionColumns.some(
+  (column) => column.name === "share_id",
+);
+
+if (!hasShareId) {
+  database.exec("ALTER TABLE collections ADD COLUMN share_id TEXT");
+}
 
 // Add starter collections only when the database is completely empty
 const collectionCount = database

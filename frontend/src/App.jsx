@@ -6,6 +6,13 @@ function App() {
   const [collections, setCollections] = useState([]);
   const [apiMessage, setApiMessage] = useState("Connecting to backend...");
 
+  const [sharedCollection, setSharedCollection] = useState(null);
+  const [shareError, setShareError] = useState("");
+
+  const shareId = window.location.pathname.startsWith("/share/")
+    ? window.location.pathname.split("/")[2]
+    : null;
+
   // Check the backend connection once the page first loads
   useEffect(() => {
     fetch("http://localhost:3001/api/health")
@@ -21,6 +28,24 @@ function App() {
       .then((data) => setCollections(data))
       .catch((error) => console.error("Could not load collections:", error));
   }, []);
+
+  // Load one public collection when the URL contains a sharing ID
+  useEffect(() => {
+    if (!shareId) {
+      return;
+    }
+
+    fetch(`http://localhost:3001/api/shared/${shareId}`)
+      .then((response) => {
+        if (!response.ok) {
+          throw new Error("Shared collection not found.");
+        }
+
+        return response.json();
+      })
+      .then((data) => setSharedCollection(data))
+      .catch((error) => setShareError(error.message));
+  }, [shareId]);
 
   // Ask the backend to create a collection, then display its response
   async function handleCreateCollection() {
@@ -179,6 +204,82 @@ function App() {
     }
   }
 
+  // Retreive public link to a collection from backend
+  async function handleShareCollection(collectionId) {
+    try {
+      const response = await fetch(
+        `http://localhost:3001/api/collections/${collectionId}/share`,
+        { method: "POST" },
+      );
+
+      if (!response.ok) {
+        throw new Error("The backend could not share the collection.");
+      }
+
+      const share = await response.json();
+
+      window.prompt("Copy this sharing link:", share.shareUrl);
+    } catch (error) {
+      console.error(error);
+      window.alert("Could not create a sharing link.");
+    }
+  }
+
+  // Render a separate read-only page when visiting a sharing URL
+  if (shareId) {
+    if (shareError) {
+      return (
+        <main className="app">
+          <header>
+            <h1>SuperImage</h1>
+            <p>{shareError}</p>
+            <a href="/">Return home</a>
+          </header>
+        </main>
+      );
+    }
+
+    if (!sharedCollection) {
+      return (
+        <main className="app">
+          <header>
+            <h1>Loading shared collection...</h1>
+          </header>
+        </main>
+      );
+    }
+
+    return (
+      <main className="app">
+        <header>
+          <h1>{sharedCollection.name}</h1>
+          <p>{sharedCollection.description}</p>
+          <small>Shared with SuperImage</small>
+        </header>
+
+        <section className="collections">
+          <div className="saved-images">
+            {sharedCollection.images.length > 0 ? (
+              sharedCollection.images.map((image) => (
+                <figure className="saved-image" key={image.id}>
+                  <img src={image.imageUrl} alt={image.title} />
+                  <figcaption>{image.title}</figcaption>
+                </figure>
+              ))
+            ) : (
+              <p className="empty-message">No images saved yet.</p>
+            )}
+          </div>
+
+          <p>
+            <a href="/">Return to SuperImage</a>
+          </p>
+        </section>
+      </main>
+    );
+  }
+
+  // Main home page rendering
   return (
     <main className="app">
       <header>
@@ -206,6 +307,14 @@ function App() {
                 onClick={() => handleAddImage(collection.id)}
               >
                 Add image
+              </button>
+
+              <button
+                className="share-button"
+                type="button"
+                onClick={() => handleShareCollection(collection.id)}
+              >
+                Share collection
               </button>
 
               {collection.images?.length > 0 ? (
