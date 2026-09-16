@@ -1,4 +1,5 @@
-# Prevent commits to git 
+# Prevent being pushed to gh
 node_modules/
 .env
 dist/
+backend/superimage.db*

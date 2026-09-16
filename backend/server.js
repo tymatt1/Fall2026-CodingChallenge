@@ -2,6 +2,8 @@
 const express = require("express");
 const cors = require("cors");
 
+const database = require("./database");
+
 const app = express();
 const port = 3001;
 
@@ -19,28 +21,38 @@ app.listen(port, () => {
   console.log(`Backend running at http://localhost:${port}`);
 });
 
-// Temporary storage while the app is running.
-let collections = [
-  {
-    id: 1,
-    name: "Dream Destinations",
-    description: "Places I would love to visit.",
-    images: [],
-  },
-  {
-    id: 2,
-    name: "Creative Spaces",
-    description: "Rooms and workspaces that inspire me.",
-    images: [],
-  },
-];
+// Load collections and their images from SQLite db when the server starts
+const collectionRows = database
+  .prepare(
+    `
+    SELECT id, name, description
+    FROM collections
+    ORDER BY id
+  `,
+  )
+  .all();
+
+const selectImages = database.prepare(`
+  SELECT
+    id,
+    image_url AS imageUrl,
+    title
+  FROM images
+  WHERE collection_id = ?
+  ORDER BY id
+`);
+
+let collections = collectionRows.map((collection) => ({
+  ...collection,
+  images: selectImages.all(collection.id),
+}));
 
 // Return every collection to the frontend
 app.get("/api/collections", (request, response) => {
   response.json(collections);
 });
 
-// Create a collection from data sent by the frontend
+// Create a collection and save it permanently in SQLite database
 app.post("/api/collections", (request, response) => {
   const name = request.body.name?.trim();
 
@@ -50,11 +62,22 @@ app.post("/api/collections", (request, response) => {
     });
   }
 
+  const description =
+    request.body.description?.trim() || "A new SuperImage collection.";
+
+  const result = database
+    .prepare(
+      `
+      INSERT INTO collections (name, description)
+      VALUES (?, ?)
+    `,
+    )
+    .run(name, description);
+
   const newCollection = {
-    id: Date.now(),
+    id: Number(result.lastInsertRowid),
     name,
-    description:
-      request.body.description?.trim() || "A new SuperImage collection.",
+    description,
     images: [],
   };
 
@@ -63,7 +86,7 @@ app.post("/api/collections", (request, response) => {
   response.status(201).json(newCollection);
 });
 
-// Save an image inside a certain collection
+// Save an image to a current collection in the SQL db
 app.post("/api/collections/:collectionId/images", (request, response) => {
   const collectionId = Number(request.params.collectionId);
   const collection = collections.find((item) => item.id === collectionId);
@@ -82,10 +105,21 @@ app.post("/api/collections/:collectionId/images", (request, response) => {
     });
   }
 
+  const title = request.body.title?.trim() || "Untitled image";
+
+  const result = database
+    .prepare(
+      `
+      INSERT INTO images (collection_id, image_url, title)
+      VALUES (?, ?, ?)
+    `,
+    )
+    .run(collectionId, imageUrl, title);
+
   const newImage = {
-    id: Date.now(),
+    id: Number(result.lastInsertRowid),
     imageUrl,
-    title: request.body.title?.trim() || "Untitled image",
+    title,
   };
 
   collection.images.push(newImage);
@@ -93,7 +127,7 @@ app.post("/api/collections/:collectionId/images", (request, response) => {
   response.status(201).json(newImage);
 });
 
-// Remove a particular image from a collection
+// Delete an image from the SQLite server's collection data
 app.delete(
   "/api/collections/:collectionId/images/:imageId",
   (request, response) => {
@@ -108,18 +142,31 @@ app.delete(
       });
     }
 
-    const imageIndex = collection.images.findIndex(
-      (image) => image.id === imageId,
-    );
+    const image = collection.images.find((item) => item.id === imageId);
 
-    if (imageIndex === -1) {
+    if (!image) {
       return response.status(404).json({
         error: "Image not found.",
       });
     }
 
-    const [deletedImage] = collection.images.splice(imageIndex, 1);
+    const result = database
+      .prepare(
+        `
+        DELETE FROM images
+        WHERE id = ? AND collection_id = ?
+      `,
+      )
+      .run(imageId, collectionId);
 
-    response.json(deletedImage);
+    if (result.changes === 0) {
+      return response.status(404).json({
+        error: "Image not found in the database.",
+      });
+    }
+
+    collection.images = collection.images.filter((item) => item.id !== imageId);
+
+    response.json(image);
   },
 );
