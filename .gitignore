@@ -1,0 +1,4 @@
+# Prevent commits to git 
+node_modules/
+.env
+dist/
