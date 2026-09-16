@@ -14,11 +14,13 @@ let collections = [
     id: 1,
     name: 'Dream Destinations',
     description: 'Places I would love to visit.',
+    images: [],
   },
   {
     id: 2,
     name: 'Creative Spaces',
     description: 'Rooms and workspaces that inspire me.',
+    images: [],
   },
 ]
 
@@ -42,11 +44,42 @@ app.post('/api/collections', (request, response) => {
     name,
     description:
       request.body.description?.trim() || 'A new SuperImage collection.',
+    images: [],
   }
 
   collections.push(newCollection)
 
   response.status(201).json(newCollection)
+})
+
+// Save an image inside a certain collection
+app.post('/api/collections/:collectionId/images', (request, response) => {
+  const collectionId = Number(request.params.collectionId)
+  const collection = collections.find((item) => item.id === collectionId)
+
+  if (!collection) {
+    return response.status(404).json({
+      error: 'Collection not found.',
+    })
+  }
+
+  const imageUrl = request.body.imageUrl?.trim()
+
+  if (!imageUrl) {
+    return response.status(400).json({
+      error: 'Image URL is required.',
+    })
+  }
+
+  const newImage = {
+    id: Date.now(),
+    imageUrl,
+    title: request.body.title?.trim() || 'Untitled image',
+  }
+
+  collection.images.push(newImage)
+
+  response.status(201).json(newImage)
 })
 
 // Verification that the backend is available
