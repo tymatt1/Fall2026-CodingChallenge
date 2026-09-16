@@ -27,6 +27,28 @@ app.get('/api/collections', (request, response) => {
   response.json(collections)
 })
 
+// Create a collection from data sent by the frontend
+app.post('/api/collections', (request, response) => {
+  const name = request.body.name?.trim()
+
+  if (!name) {
+    return response.status(400).json({
+      error: 'Collection name is required.',
+    })
+  }
+
+  const newCollection = {
+    id: Date.now(),
+    name,
+    description:
+      request.body.description?.trim() || 'A new SuperImage collection.',
+  }
+
+  collections.push(newCollection)
+
+  response.status(201).json(newCollection)
+})
+
 // Verification that the backend is available
 app.get('/api/health', (request, response) => {
   response.json({

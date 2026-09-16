@@ -1,28 +1,9 @@
 import { useEffect, useState } from 'react'
 import './App.css'
 
-// Temporary front-end data
-const sampleCollections = [
-  {
-    id: 1,
-    name: 'Dream Destinations',
-    description: 'Places I would love to visit.',
-  },
-  {
-    id: 2,
-    name: 'Creative Spaces',
-    description: 'Rooms and workspaces that inspire me.',
-  },
-  {
-    id: 3,
-    name: 'Recipe Ideas',
-    description: 'Meals I want to try making.',
-  }
-]
-
 //Main javascript for website
 function App() {
-  const [collections, setCollections] = useState(sampleCollections)
+  const [collections, setCollections] = useState([])
   const [apiMessage, setApiMessage] = useState('Connecting to backend...')
 
   // Check the backend connection once the page first loads
@@ -33,21 +14,45 @@ function App() {
       .catch(() => setApiMessage('Backend is not connected'))
   }, [])
 
-  //Add a collection to React state. It will disappear when the Page refreshes.
-  function handleCreateCollection() {
+  // Load the collection list from the backend
+  useEffect(() => {
+    fetch('http://localhost:3001/api/collections')
+      .then((response) => response.json())
+      .then((data) => setCollections(data))
+      .catch((error) => console.error('Could not load collections:', error))
+  }, [])
+
+ 
+  // Ask the backend to create a collection, then display its response
+  async function handleCreateCollection() {
     const name = window.prompt('What should this collection be called?')
 
     if (!name?.trim()) {
       return
     }
 
-    const newCollection = {
-      id: Date.now(),
-      name: name.trim(),
-      description: 'A new SuperImage collection.',
-    }
+    try {
+      const response = await fetch('http://localhost:3001/api/collections', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          name: name.trim(),
+        }),
+      })
 
-    setCollections([...collections, newCollection])
+      if (!response.ok) {
+        throw new Error('The backend could not create the collection.')
+      }
+
+      const newCollection = await response.json()
+
+      setCollections([...collections, newCollection])
+    } catch (error) {
+      console.error(error)
+      window.alert('Something went wrong while creating the collection.')
+    }
   }
 
   return (
