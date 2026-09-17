@@ -5,7 +5,6 @@ import {
   addImage,
   createCollection,
   getCollections,
-  getHealth,
   getSharedCollection,
   removeImage,
   savePixabayImage,
@@ -18,7 +17,6 @@ import {
 function App() {
   // Connection to back end for Collection editing
   const [collections, setCollections] = useState([]);
-  const [apiMessage, setApiMessage] = useState("Connecting to backend...");
 
   // Collection sharing
   const [sharedCollection, setSharedCollection] = useState(null);
@@ -35,13 +33,6 @@ function App() {
   const shareId = window.location.pathname.startsWith("/share/")
     ? window.location.pathname.split("/")[2]
     : null;
-
-  // Check the backend connection once when the page first loads
-  useEffect(() => {
-    getHealth()
-      .then((data) => setApiMessage(data.message))
-      .catch(() => setApiMessage("Backend is not connected"));
-  }, []);
 
   // Load the collection list from the backend
   useEffect(() => {
@@ -239,11 +230,15 @@ function App() {
   if (shareId) {
     if (shareError) {
       return (
-        <main className="app">
-          <header>
-            <h1>SuperImage</h1>
+        <main className="app state-page">
+          <header className="state-card">
+            <span className="brand-mark">SI</span>
+            <p className="eyebrow">SuperImage</p>
+            <h1>We couldn&apos;t find that collection.</h1>
             <p>{shareError}</p>
-            <a href="/">Return home</a>
+            <a className="text-link" href="/">
+              Return home
+            </a>
           </header>
         </main>
       );
@@ -251,8 +246,10 @@ function App() {
 
     if (!sharedCollection) {
       return (
-        <main className="app">
-          <header>
+        <main className="app state-page">
+          <header className="state-card">
+            <span className="brand-mark">SI</span>
+            <p className="eyebrow">SuperImage</p>
             <h1>Loading shared collection...</h1>
           </header>
         </main>
@@ -260,19 +257,37 @@ function App() {
     }
 
     return (
-      <main className="app">
-        <header>
-          <h1>{sharedCollection.name}</h1>
-          <p>{sharedCollection.description}</p>
-          <small>Shared with SuperImage</small>
+      <main className="app shared-page">
+        <header className="shared-header">
+          <div className="shared-header-content">
+            <a className="brand" href="/">
+              <span className="brand-mark">SI</span>
+              <span>SuperImage</span>
+            </a>
+            <span className="shared-badge">Read-only collection</span>
+            <h1>{sharedCollection.name}</h1>
+            <p>{sharedCollection.description}</p>
+          </div>
         </header>
 
-        <section className="collections">
-          <div className="saved-images">
+        <section className="shared-content">
+          <div className="shared-heading">
+            <div>
+              <p className="section-kicker">Curated with SuperImage</p>
+              <h2>Collection gallery</h2>
+            </div>
+            <a className="text-link" href="/">
+              Return to SuperImage
+            </a>
+          </div>
+
+          <div className="shared-gallery">
             {sharedCollection.images.length > 0 ? (
               sharedCollection.images.map((image) => (
                 <figure className="saved-image" key={image.id}>
-                  <img src={image.imageUrl} alt={image.title} />
+                  <div className="image-frame">
+                    <img src={image.imageUrl} alt={image.title} />
+                  </div>
                   <figcaption>{image.title}</figcaption>
                 </figure>
               ))
@@ -280,10 +295,6 @@ function App() {
               <p className="empty-message">No images saved yet.</p>
             )}
           </div>
-
-          <p>
-            <a href="/">Return to SuperImage</a>
-          </p>
         </section>
       </main>
     );
@@ -292,114 +303,166 @@ function App() {
   // Main home page rendering
   return (
     <main className="app">
-      <header>
-        <h1>SuperImage</h1>
-        <p>Discover, save, and organize images that inspire you.</p>
-        <small>{apiMessage}</small>
+      <header className="app-header">
+        <div className="header-content">
+          <a className="brand" href="/">
+            <span className="brand-mark">SI</span>
+            <span>SuperImage</span>
+          </a>
+        </div>
       </header>
 
-      <section className="image-search">
-        <h2>Discover images</h2>
+      <div className="app-content">
+        <section className="page-intro">
+          <div>
+            <h1>SuperImage</h1>
+            <p>
+              Search, organize, and share the images that support your ideas.
+            </p>
+          </div>
 
-        <form onSubmit={handleSearch}>
-          <input
-            type="search"
-            value={searchQuery}
-            onChange={(event) => setSearchQuery(event.target.value)}
-            placeholder="Search for mountains, animals, art..."
-            aria-label="Search Pixabay"
-          />
-          <button type="submit">Search</button>
-        </form>
-
-        <label htmlFor="collection-select">Save search results to: </label>
-
-        <select
-          id="collection-select"
-          value={selectedCollectionId}
-          onChange={(event) => setSelectedCollectionId(event.target.value)}
-        >
-          <option value="">Choose a collection</option>
-
-          {collections.map((collection) => (
-            <option key={collection.id} value={collection.id}>
-              {collection.name}
-            </option>
-          ))}
-        </select>
-
-        {searchMessage && <p>{searchMessage}</p>}
-
-        <div className="search-results">
-          {searchResults.map((image) => (
-            <SearchResultCard
-              key={image.id}
-              image={image}
-              onSave={handleSaveSearchResult}
-            />
-          ))}
-        </div>
-      </section>
-
-      <section className="collections">
-        <div className="section-heading">
-          <h2>Your collections</h2>
           <button type="button" onClick={handleCreateCollection}>
-            New collection
+            + New collection
           </button>
-        </div>
+        </section>
 
-        <div className="collection-grid">
-          {collections.map((collection) => (
-            <article className="collection-card" key={collection.id}>
-              <h3>{collection.name}</h3>
-              <p>{collection.description}</p>
-              <button
-                className="add-image-button"
-                type="button"
-                onClick={() => handleAddImage(collection.id)}
+        <section className="image-search">
+          <div className="search-heading">
+            <div>
+              <p className="section-kicker">Explore</p>
+              <h2>Discover images</h2>
+            </div>
+
+            <div className="destination-picker">
+              <label htmlFor="collection-select">Save results to</label>
+
+              <select
+                id="collection-select"
+                value={selectedCollectionId}
+                onChange={(event) =>
+                  setSelectedCollectionId(event.target.value)
+                }
               >
-                Add image
-              </button>
+                <option value="">Choose a collection</option>
 
-              <button
-                className="share-button"
-                type="button"
-                onClick={() => handleShareCollection(collection.id)}
-              >
-                Share collection
-              </button>
+                {collections.map((collection) => (
+                  <option key={collection.id} value={collection.id}>
+                    {collection.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
 
-              {collection.images?.length > 0 ? (
-                <div className="saved-images">
-                  {collection.images.map((image) => (
-                    <figure className="saved-image" key={image.id}>
-                      <img src={image.imageUrl} alt={image.title} />
-                      <figcaption>{image.title}</figcaption>
-                      <button
-                        type="button"
-                        onClick={() => handleEditImage(collection.id, image)}
-                      >
-                        Edit title
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() =>
-                          handleRemoveImage(collection.id, image.id)
-                        }
-                      >
-                        Remove image
-                      </button>
-                    </figure>
-                  ))}
+          <form className="search-form" onSubmit={handleSearch}>
+            <input
+              type="search"
+              value={searchQuery}
+              onChange={(event) => setSearchQuery(event.target.value)}
+              placeholder="Try ‘coastal architecture’ or ‘wildflowers’"
+              aria-label="Search Pixabay"
+            />
+            <button type="submit">Search Pixabay</button>
+          </form>
+
+          {searchMessage && <p className="search-message">{searchMessage}</p>}
+
+          <div className="search-results">
+            {searchResults.map((image) => (
+              <SearchResultCard
+                key={image.id}
+                image={image}
+                onSave={handleSaveSearchResult}
+              />
+            ))}
+          </div>
+        </section>
+
+        <section className="collections">
+          <div className="section-heading">
+            <div>
+              <h2>Your collections</h2>
+              <p className="section-description">
+                {collections.length} curated spaces for your inspiration
+              </p>
+            </div>
+          </div>
+
+          <div className="collection-grid">
+            {collections.map((collection) => (
+              <article className="collection-card" key={collection.id}>
+                <div className="collection-card-header">
+                  <div>
+                    <span className="collection-label">Collection</span>
+                    <h3>{collection.name}</h3>
+                    <p>{collection.description}</p>
+                  </div>
+                  <span className="image-count">
+                    {collection.images?.length || 0} saved
+                  </span>
                 </div>
-              ) : (
-                <p className="empty-message">No images saved yet.</p>
-              )}
-            </article>
-          ))}
-        </div>
-      </section>
+
+                <div className="collection-actions">
+                  <button
+                    className="add-image-button"
+                    type="button"
+                    onClick={() => handleAddImage(collection.id)}
+                  >
+                    + Add image
+                  </button>
+
+                  <button
+                    className="share-button"
+                    type="button"
+                    onClick={() => handleShareCollection(collection.id)}
+                  >
+                    Share collection
+                  </button>
+                </div>
+
+                {collection.images?.length > 0 ? (
+                  <div className="saved-images">
+                    {collection.images.map((image) => (
+                      <figure className="saved-image" key={image.id}>
+                        <div className="image-frame">
+                          <img src={image.imageUrl} alt={image.title} />
+                        </div>
+                        <figcaption title={image.title}>
+                          {image.title}
+                        </figcaption>
+                        <div className="image-actions">
+                          <button
+                            type="button"
+                            onClick={() =>
+                              handleEditImage(collection.id, image)
+                            }
+                          >
+                            Edit title
+                          </button>
+                          <button
+                            className="remove-button"
+                            type="button"
+                            onClick={() =>
+                              handleRemoveImage(collection.id, image.id)
+                            }
+                          >
+                            Remove
+                          </button>
+                        </div>
+                      </figure>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="empty-message">
+                    <span>+</span>
+                    <p>No images yet. Add one to start this collection.</p>
+                  </div>
+                )}
+              </article>
+            ))}
+          </div>
+        </section>
+      </div>
     </main>
   );
 }

@@ -50,11 +50,11 @@ if (collectionCount.count === 0) {
     VALUES (?, ?)
   `);
 
-  insertCollection.run("Dream Destinations", "Places I would love to visit.");
+  insertCollection.run("Travel", "Places to explore and adventures to plan.");
 
   insertCollection.run(
-    "Creative Spaces",
-    "Rooms and workspaces that inspire me.",
+    "Lifestyle",
+    "Ideas for spaces, routines, and everyday inspiration.",
   );
 }
 
