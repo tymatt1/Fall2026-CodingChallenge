@@ -1,5 +1,18 @@
 import { useEffect, useState } from "react";
 import "./App.css";
+import SearchResultCard from "./components/SearchResultCard";
+import {
+  addImage,
+  createCollection,
+  getCollections,
+  getHealth,
+  getSharedCollection,
+  removeImage,
+  savePixabayImage,
+  searchImages,
+  shareCollection,
+  updateImageTitle,
+} from "./api";
 
 //Main javascript for website
 function App() {
@@ -23,18 +36,16 @@ function App() {
     ? window.location.pathname.split("/")[2]
     : null;
 
-  // Check the backend connection once the page first loads
+  // Check the backend connection once when the page first loads
   useEffect(() => {
-    fetch("http://localhost:3001/api/health")
-      .then((response) => response.json())
+    getHealth()
       .then((data) => setApiMessage(data.message))
       .catch(() => setApiMessage("Backend is not connected"));
   }, []);
 
   // Load the collection list from the backend
   useEffect(() => {
-    fetch("http://localhost:3001/api/collections")
-      .then((response) => response.json())
+    getCollections()
       .then((data) => setCollections(data))
       .catch((error) => console.error("Could not load collections:", error));
   }, []);
@@ -45,14 +56,7 @@ function App() {
       return;
     }
 
-    fetch(`http://localhost:3001/api/shared/${shareId}`)
-      .then((response) => {
-        if (!response.ok) {
-          throw new Error("Shared collection not found.");
-        }
-
-        return response.json();
-      })
+    getSharedCollection(shareId)
       .then((data) => setSharedCollection(data))
       .catch((error) => setShareError(error.message));
   }, [shareId]);
@@ -66,21 +70,7 @@ function App() {
     }
 
     try {
-      const response = await fetch("http://localhost:3001/api/collections", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          name: name.trim(),
-        }),
-      });
-
-      if (!response.ok) {
-        throw new Error("The backend could not create the collection.");
-      }
-
-      const newCollection = await response.json();
+      const newCollection = await createCollection(name.trim());
 
       setCollections([...collections, newCollection]);
     } catch (error) {
@@ -100,25 +90,11 @@ function App() {
     const title = window.prompt("Give the image a title:") || "Untitled image";
 
     try {
-      const response = await fetch(
-        `http://localhost:3001/api/collections/${collectionId}/images`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            imageUrl: imageUrl.trim(),
-            title: title.trim(),
-          }),
-        },
+      const newImage = await addImage(
+        collectionId,
+        imageUrl.trim(),
+        title.trim(),
       );
-
-      if (!response.ok) {
-        throw new Error("The backend could not save the image.");
-      }
-
-      const newImage = await response.json();
 
       setCollections(
         collections.map((collection) =>
@@ -143,14 +119,7 @@ function App() {
     }
 
     try {
-      const response = await fetch(
-        `http://localhost:3001/api/collections/${collectionId}/images/${imageId}`,
-        { method: "DELETE" },
-      );
-
-      if (!response.ok) {
-        throw new Error("The backend could not remove the image.");
-      }
+      await removeImage(collectionId, imageId);
 
       setCollections((currentCollections) =>
         currentCollections.map((collection) =>
@@ -179,22 +148,11 @@ function App() {
     }
 
     try {
-      const response = await fetch(
-        `http://localhost:3001/api/collections/${collectionId}/images/${image.id}`,
-        {
-          method: "PATCH",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({ title: title.trim() }),
-        },
+      const updatedImage = await updateImageTitle(
+        collectionId,
+        image.id,
+        title.trim(),
       );
-
-      if (!response.ok) {
-        throw new Error("The backend could not edit the image.");
-      }
-
-      const updatedImage = await response.json();
 
       setCollections((currentCollections) =>
         currentCollections.map((collection) =>
@@ -217,16 +175,7 @@ function App() {
   // Retreive public link to a collection from backend
   async function handleShareCollection(collectionId) {
     try {
-      const response = await fetch(
-        `http://localhost:3001/api/collections/${collectionId}/share`,
-        { method: "POST" },
-      );
-
-      if (!response.ok) {
-        throw new Error("The backend could not share the collection.");
-      }
-
-      const share = await response.json();
+      const share = await shareCollection(collectionId);
 
       window.prompt("Copy this sharing link:", share.shareUrl);
     } catch (error) {
@@ -247,17 +196,7 @@ function App() {
     setSearchResults([]);
 
     try {
-      const response = await fetch(
-        `http://localhost:3001/api/search?q=${encodeURIComponent(
-          searchQuery.trim(),
-        )}`,
-      );
-
-      if (!response.ok) {
-        throw new Error("The image search failed.");
-      }
-
-      const results = await response.json();
+      const results = await searchImages(searchQuery.trim());
 
       setSearchResults(results);
       setSearchMessage(
@@ -279,23 +218,7 @@ function App() {
     }
 
     try {
-      const response = await fetch(
-        `http://localhost:3001/api/collections/${selectedCollectionId}/pixabay-images`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            imageUrl: image.previewUrl,
-            title: image.title,
-          }),
-        },
-      );
-
-      if (!response.ok) {
-        throw new Error("Could not save the image.");
-      }
-
-      const newImage = await response.json();
+      const newImage = await savePixabayImage(selectedCollectionId, image);
 
       setCollections((currentCollections) =>
         currentCollections.map((collection) =>
@@ -409,21 +332,11 @@ function App() {
 
         <div className="search-results">
           {searchResults.map((image) => (
-            <article className="search-result" key={image.id}>
-              <img src={image.previewUrl} alt={image.title} />
-              <small>
-                Photo by {image.creator} on{" "}
-                <a href={image.sourceUrl} target="_blank" rel="noreferrer">
-                  Pixabay
-                </a>
-              </small>
-              <button
-                type="button"
-                onClick={() => handleSaveSearchResult(image)}
-              >
-                Save to collection
-              </button>
-            </article>
+            <SearchResultCard
+              key={image.id}
+              image={image}
+              onSave={handleSaveSearchResult}
+            />
           ))}
         </div>
       </section>
