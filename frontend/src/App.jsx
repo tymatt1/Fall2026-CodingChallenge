@@ -3,11 +3,18 @@ import "./App.css";
 
 //Main javascript for website
 function App() {
+  // Connection to back end for Collection editing
   const [collections, setCollections] = useState([]);
   const [apiMessage, setApiMessage] = useState("Connecting to backend...");
 
+  // Collection sharing
   const [sharedCollection, setSharedCollection] = useState(null);
   const [shareError, setShareError] = useState("");
+
+  // Pixabay searching
+  const [searchQuery, setSearchQuery] = useState("");
+  const [searchResults, setSearchResults] = useState([]);
+  const [searchMessage, setSearchMessage] = useState("");
 
   const shareId = window.location.pathname.startsWith("/share/")
     ? window.location.pathname.split("/")[2]
@@ -225,6 +232,42 @@ function App() {
     }
   }
 
+  // Search Pixabay through the backend
+  async function handleSearch(event) {
+    event.preventDefault();
+
+    if (!searchQuery.trim()) {
+      return;
+    }
+
+    setSearchMessage("Searching...");
+    setSearchResults([]);
+
+    try {
+      const response = await fetch(
+        `http://localhost:3001/api/search?q=${encodeURIComponent(
+          searchQuery.trim(),
+        )}`,
+      );
+
+      if (!response.ok) {
+        throw new Error("The image search failed.");
+      }
+
+      const results = await response.json();
+
+      setSearchResults(results);
+      setSearchMessage(
+        results.length === 0
+          ? "No images found."
+          : `${results.length} images found.`,
+      );
+    } catch (error) {
+      console.error(error);
+      setSearchMessage("Could not search for images.");
+    }
+  }
+
   // Render a separate read-only page when visiting a sharing URL
   if (shareId) {
     if (shareError) {
@@ -287,6 +330,38 @@ function App() {
         <p>Discover, save, and organize images that inspire you.</p>
         <small>{apiMessage}</small>
       </header>
+
+      <section className="image-search">
+        <h2>Discover images</h2>
+
+        <form onSubmit={handleSearch}>
+          <input
+            type="search"
+            value={searchQuery}
+            onChange={(event) => setSearchQuery(event.target.value)}
+            placeholder="Search for mountains, animals, art..."
+            aria-label="Search Pixabay"
+          />
+          <button type="submit">Search</button>
+        </form>
+
+        {searchMessage && <p>{searchMessage}</p>}
+
+        <div className="search-results">
+          {searchResults.map((image) => (
+            <article className="search-result" key={image.id}>
+              <img src={image.previewUrl} alt={image.title} />
+              <p>{image.title}</p>
+              <small>
+                Photo by {image.creator} on{" "}
+                <a href={image.sourceUrl} target="_blank" rel="noreferrer">
+                  Pixabay
+                </a>
+              </small>
+            </article>
+          ))}
+        </div>
+      </section>
 
       <section className="collections">
         <div className="section-heading">

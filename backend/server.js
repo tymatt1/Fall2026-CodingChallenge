@@ -1,3 +1,5 @@
+require("dotenv").config();
+
 // Configured Express backend server
 const express = require("express");
 const cors = require("cors");
@@ -196,6 +198,65 @@ app.patch(
     response.json(image);
   },
 );
+
+// Search Pixabay using private API key in .env
+app.get("/api/search", async (request, response) => {
+  const query = request.query.q?.trim();
+
+  if (!query) {
+    return response.status(400).json({
+      error: "A search term is required.",
+    });
+  }
+
+  if (query.length > 100) {
+    return response.status(400).json({
+      error: "Search terms cannot exceed 100 characters.",
+    });
+  }
+
+  if (!process.env.PIXABAY_API_KEY) {
+    return response.status(500).json({
+      error: "Pixabay API key is not configured.",
+    });
+  }
+
+  const parameters = new URLSearchParams({
+    key: process.env.PIXABAY_API_KEY,
+    q: query,
+    image_type: "photo",
+    safesearch: "true",
+    per_page: "12",
+  });
+
+  try {
+    const pixabayResponse = await fetch(
+      `https://pixabay.com/api/?${parameters}`,
+    );
+
+    if (!pixabayResponse.ok) {
+      throw new Error(`Pixabay returned status ${pixabayResponse.status}`);
+    }
+
+    const data = await pixabayResponse.json();
+
+    const results = data.hits.map((image) => ({
+      id: image.id,
+      title: image.tags,
+      previewUrl: image.webformatURL,
+      sourceUrl: image.pageURL,
+      creator: image.user,
+    }));
+
+    response.json(results);
+  } catch (error) {
+    console.error("Pixabay search failed:", error);
+
+    response.status(502).json({
+      error: "Could not search Pixabay.",
+    });
+  }
+});
 
 // Delete an image from a collection and in the server
 app.delete(
