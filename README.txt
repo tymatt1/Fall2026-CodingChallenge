@@ -16,10 +16,10 @@ Specifications:
 
 Setup:
 - Install Node.js
-- Open a terminal window in the backend folder
 - Copy backend/.env.example to backend/.env
 - Replace the Pixabay API key placeholder in .env with your own key
-- Open another terminal window in the frontend folder, and run: npm install
+- Open two terminal windows, one in the frontend folder and one in the backend.
+  Run in both: npm install
 
 Run Instructions:
 - In the backend terminal, run: npm run dev
