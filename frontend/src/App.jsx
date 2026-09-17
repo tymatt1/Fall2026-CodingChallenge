@@ -16,6 +16,9 @@ function App() {
   const [searchResults, setSearchResults] = useState([]);
   const [searchMessage, setSearchMessage] = useState("");
 
+  // Collection selector
+  const [selectedCollectionId, setSelectedCollectionId] = useState("");
+
   const shareId = window.location.pathname.startsWith("/share/")
     ? window.location.pathname.split("/")[2]
     : null;
@@ -268,6 +271,47 @@ function App() {
     }
   }
 
+  // Save a Pixabay search result to the selected collection
+  async function handleSaveSearchResult(image) {
+    if (!selectedCollectionId) {
+      window.alert("Choose a collection first.");
+      return;
+    }
+
+    try {
+      const response = await fetch(
+        `http://localhost:3001/api/collections/${selectedCollectionId}/pixabay-images`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            imageUrl: image.previewUrl,
+            title: image.title,
+          }),
+        },
+      );
+
+      if (!response.ok) {
+        throw new Error("Could not save the image.");
+      }
+
+      const newImage = await response.json();
+
+      setCollections((currentCollections) =>
+        currentCollections.map((collection) =>
+          collection.id === Number(selectedCollectionId)
+            ? { ...collection, images: [...collection.images, newImage] }
+            : collection,
+        ),
+      );
+
+      window.alert("Image saved!");
+    } catch (error) {
+      console.error(error);
+      window.alert("Could not save this image.");
+    }
+  }
+
   // Render a separate read-only page when visiting a sharing URL
   if (shareId) {
     if (shareError) {
@@ -345,19 +389,40 @@ function App() {
           <button type="submit">Search</button>
         </form>
 
+        <label htmlFor="collection-select">Save search results to: </label>
+
+        <select
+          id="collection-select"
+          value={selectedCollectionId}
+          onChange={(event) => setSelectedCollectionId(event.target.value)}
+        >
+          <option value="">Choose a collection</option>
+
+          {collections.map((collection) => (
+            <option key={collection.id} value={collection.id}>
+              {collection.name}
+            </option>
+          ))}
+        </select>
+
         {searchMessage && <p>{searchMessage}</p>}
 
         <div className="search-results">
           {searchResults.map((image) => (
             <article className="search-result" key={image.id}>
               <img src={image.previewUrl} alt={image.title} />
-              <p>{image.title}</p>
               <small>
                 Photo by {image.creator} on{" "}
                 <a href={image.sourceUrl} target="_blank" rel="noreferrer">
                   Pixabay
                 </a>
               </small>
+              <button
+                type="button"
+                onClick={() => handleSaveSearchResult(image)}
+              >
+                Save to collection
+              </button>
             </article>
           ))}
         </div>

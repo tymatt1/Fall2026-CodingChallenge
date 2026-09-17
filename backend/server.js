@@ -1,18 +1,29 @@
 require("dotenv").config();
 
-// Configured Express backend server
+// Import the tools used by the backend
 const express = require("express");
 const cors = require("cors");
-
+const { randomUUID } = require("crypto");
+const fs = require("fs");
+const path = require("path");
 const database = require("./database");
 
+// Configure the Express server
 const app = express();
 const port = 3001;
 
-const { randomUUID } = require("crypto");
+// Create a folder for images downloaded from Pixabay
+const uploadsDirectory = path.join(__dirname, "uploads");
+
+fs.mkdirSync(uploadsDirectory, {
+  recursive: true,
+});
 
 app.use(cors());
 app.use(express.json());
+
+// Make downloaded images available to the frontend
+app.use("/uploads", express.static(uploadsDirectory));
 
 // Verification that the backend is available
 app.get("/api/health", (request, response) => {
@@ -257,6 +268,112 @@ app.get("/api/search", async (request, response) => {
     });
   }
 });
+
+// Download a Pixabay image and save it to a collection
+app.post(
+  "/api/collections/:collectionId/pixabay-images",
+  async (request, response) => {
+    const collectionId = Number(request.params.collectionId);
+    const collection = collections.find((item) => item.id === collectionId);
+
+    if (!collection) {
+      return response.status(404).json({
+        error: "Collection not found.",
+      });
+    }
+
+    const imageUrl = request.body.imageUrl?.trim();
+    const title = request.body.title?.trim() || "Untitled image";
+
+    if (!imageUrl) {
+      return response.status(400).json({
+        error: "Image URL is required.",
+      });
+    }
+
+    let imageAddress;
+
+    try {
+      imageAddress = new URL(imageUrl);
+    } catch {
+      return response.status(400).json({
+        error: "The image URL is invalid.",
+      });
+    }
+
+    const isPixabayUrl =
+      imageAddress.protocol === "https:" &&
+      (imageAddress.hostname === "pixabay.com" ||
+        imageAddress.hostname.endsWith(".pixabay.com"));
+
+    if (!isPixabayUrl) {
+      return response.status(400).json({
+        error: "Only Pixabay images can use this route.",
+      });
+    }
+
+    try {
+      const imageResponse = await fetch(imageUrl);
+
+      if (!imageResponse.ok) {
+        throw new Error("Pixabay did not return the image.");
+      }
+
+      const contentType = imageResponse.headers
+        .get("content-type")
+        ?.split(";")[0];
+
+      const extensions = {
+        "image/jpeg": ".jpg",
+        "image/png": ".png",
+        "image/webp": ".webp",
+      };
+
+      const extension = extensions[contentType];
+
+      if (!extension) {
+        return response.status(400).json({
+          error: "Pixabay returned an unsupported file type.",
+        });
+      }
+
+      const filename = `${randomUUID()}${extension}`;
+      const filePath = path.join(uploadsDirectory, filename);
+      const imageBuffer = Buffer.from(await imageResponse.arrayBuffer());
+
+      fs.writeFileSync(filePath, imageBuffer);
+
+      const savedImageUrl = `${request.protocol}://${request.get(
+        "host",
+      )}/uploads/${filename}`;
+
+      const result = database
+        .prepare(
+          `
+          INSERT INTO images (collection_id, image_url, title)
+          VALUES (?, ?, ?)
+        `,
+        )
+        .run(collectionId, savedImageUrl, title);
+
+      const newImage = {
+        id: Number(result.lastInsertRowid),
+        imageUrl: savedImageUrl,
+        title,
+      };
+
+      collection.images.push(newImage);
+
+      response.status(201).json(newImage);
+    } catch (error) {
+      console.error("Could not download Pixabay image:", error);
+
+      response.status(502).json({
+        error: "Could not download the Pixabay image.",
+      });
+    }
+  },
+);
 
 // Delete an image from a collection and in the server
 app.delete(

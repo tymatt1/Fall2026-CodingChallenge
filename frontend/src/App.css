@@ -218,6 +218,35 @@
   color: #655f73;
 }
 
+.image-search label {
+  display: inline-block;
+  margin-top: 20px;
+  color: #453276;
+  font-weight: bold;
+}
+
+.image-search select {
+  margin: 20px 0 0 8px;
+  padding: 10px;
+  border: 1px solid #d7cdf5;
+  border-radius: 8px;
+  background: white;
+  font: inherit;
+}
+
+.search-result {
+  display: flex;
+  flex-direction: column;
+}
+
+.search-result small {
+  flex: 1;
+}
+
+.search-result button {
+  margin: 12px;
+}
+
 @media (max-width: 600px) {
   .image-search form {
     flex-direction: column;
